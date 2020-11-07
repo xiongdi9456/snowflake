@@ -427,6 +427,7 @@ func getSheldonAutoSnowflakeWorkerId() (int64, error) {
 	return workerId, nil
 }
 
+// 通过hostname获取workerId
 func getWorkerIdByHostName() (int64, error) {
 	//mHostName := "app-dev-01"
 	mHostName, err := os.Hostname()
@@ -442,6 +443,16 @@ func getWorkerIdByHostName() (int64, error) {
 	return -1, errors.New("invalid host name")
 }
 
+// 通过私有IP获取workerId
+func getWorkerIdByPrivateIPLower16Bit() (uint16, error) {
+	ip, err := privateIPv4()
+	if err != nil {
+		return 0, err
+	}
+	return uint16(ip[2])<<8 + uint16(ip[3]), nil
+}
+
+// 获取私有IP
 func privateIPv4() (net.IP, error) {
 	as, err := net.InterfaceAddrs()
 	if err != nil {
@@ -462,15 +473,8 @@ func privateIPv4() (net.IP, error) {
 	return nil, errors.New("no private ip address")
 }
 
+// 判断是否是内网ipv4
 func isPrivateIPv4(ip net.IP) bool {
 	return ip != nil &&
 		(ip[0] == 10 || ip[0] == 172 && (ip[1] >= 16 && ip[1] < 32) || ip[0] == 192 && ip[1] == 168)
-}
-
-func getWorkerIdByPrivateIPLower16Bit() (uint16, error) {
-	ip, err := privateIPv4()
-	if err != nil {
-		return 0, err
-	}
-	return uint16(ip[2])<<8 + uint16(ip[3]), nil
 }
