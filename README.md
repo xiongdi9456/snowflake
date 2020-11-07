@@ -121,6 +121,35 @@ func main() {
 }
 ```
 
+### SheldonSnowFlake
+
+添加了SheldonSnowFlake，可以自动获取workerID
+获取原则是首先根据服务器的hostname编码获取，如果获取不到，则利用私有ip转换
+```go
+
+func TestSheldonSnowFlakeID(t *testing.T) {
+
+	node, err := NewSheldonAutoWorkerIdSnowflake()
+	if err != nil {
+
+		return
+	}
+
+	var x, y ID
+	for i := 0; i < 20; i++ {
+		y = node.Generate()
+		t.Logf("Int64    : %#v", y.Int64())
+		t.Logf("String   : %#v", y.String())
+		t.Logf("Base64   : %#v", y.Base64())
+		if x == y {
+			t.Errorf("x(%d) & y(%d) are the same", x, y)
+		}
+		x = y
+	}
+}
+
+```
+
 ### Performance
 
 With default settings, this snowflake generator should be sufficiently fast 
