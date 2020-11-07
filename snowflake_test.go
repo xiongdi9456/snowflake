@@ -39,6 +39,27 @@ func TestGenerateDuplicateID(t *testing.T) {
 	}
 }
 
+func TestSheldonSnowFlakeID(t *testing.T) {
+
+	node, err := NewSheldonAutoWorkerIdSnowflake()
+	if err != nil {
+
+		return
+	}
+
+	var x, y ID
+	for i := 0; i < 20; i++ {
+		y = node.Generate()
+		t.Logf("Int64    : %#v", y.Int64())
+		t.Logf("String   : %#v", y.String())
+		t.Logf("Base64   : %#v", y.Base64())
+		if x == y {
+			t.Errorf("x(%d) & y(%d) are the same", x, y)
+		}
+		x = y
+	}
+}
+
 // I feel like there's probably a better way
 func TestRace(t *testing.T) {
 
@@ -253,6 +274,9 @@ func TestBase64(t *testing.T) {
 	if pID != oID {
 		t.Fatalf("pID %v != oID %v", pID, oID)
 	}
+	t.Logf("Base64-oID    : %#v", oID)
+	t.Logf("Base64-i    : %#v", i)
+	t.Logf("Base64-pID    : %#v", pID)
 
 	ms := `MTExNjgxOTQ5NDY2MDk5NzEyMA==`
 	_, err = ParseBase64(ms)

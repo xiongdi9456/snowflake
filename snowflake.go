@@ -6,7 +6,10 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"net"
+	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -14,10 +17,13 @@ import (
 var (
 	// Epoch is set to the twitter snowflake epoch of Nov 04 2010 01:42:54 UTC in milliseconds
 	// You may customize this to set a different epoch for your application.
-	Epoch int64 = 1288834974657
+	//Epoch int64 = 1288834974657
+	// 11/01/2020 @ 12:00am (UTC)
+	Epoch int64 = 1604188800000
 
 	// NodeBits holds the number of bits to use for Node
 	// Remember, you have a total 22 bits to share between Node/Step
+	// 0~1023
 	NodeBits uint8 = 10
 
 	// StepBits holds the number of bits to use for Step
@@ -94,6 +100,46 @@ type Node struct {
 // An ID is a custom type used for a snowflake ID.  This is used so we can
 // attach methods onto the ID.
 type ID int64
+
+// NewSheldonSnowflake
+func NewSheldonAutoWorkerIdSnowflake() (*Node, error) {
+
+	// re-calc in case custom NodeBits or StepBits were set
+	// DEPRECATED: the below block will be removed in a future release.
+	mu.Lock()
+	nodeMax = -1 ^ (-1 << NodeBits)
+	nodeMask = nodeMax << StepBits
+	stepMask = -1 ^ (-1 << StepBits)
+	timeShift = NodeBits + StepBits
+	nodeShift = StepBits
+	mu.Unlock()
+
+	n := Node{}
+	//自己获取node
+	// 1.先从hostname的编号中解析
+	// 2.如果解析不到再去解析服务器私有ip
+	myAutoWorkerId, err := getSheldonAutoSnowflakeWorkerId()
+	if err != nil {
+		return nil, errors.New("workerId auto generate failed")
+	}
+	n.node = myAutoWorkerId
+
+	n.nodeMax = -1 ^ (-1 << NodeBits)
+	n.nodeMask = n.nodeMax << StepBits
+	n.stepMask = -1 ^ (-1 << StepBits)
+	n.timeShift = NodeBits + StepBits
+	n.nodeShift = StepBits
+
+	if n.node < 0 || n.node > n.nodeMax {
+		return nil, errors.New("Node number must be between 0 and " + strconv.FormatInt(n.nodeMax, 10))
+	}
+
+	var curTime = time.Now()
+	// add time.Duration to curTime to make sure we use the monotonic clock if available
+	n.epoch = curTime.Add(time.Unix(Epoch/1000, (Epoch%1000)*1000000).Sub(curTime))
+
+	return &n, nil
+}
 
 // NewNode returns a new snowflake node that can be used to generate snowflake
 // IDs
@@ -362,4 +408,69 @@ func (f *ID) UnmarshalJSON(b []byte) error {
 
 	*f = ID(i)
 	return nil
+}
+
+// ****自动获取workerID****
+// 逻辑是1.先从hostname中获取,2.如果拿不到再从服务器的私有IP中获取
+// 先从hostname编号中中获取,hostname格式是:服务名-环境名-编号
+// 服务器的hostname一般"app-dev-01","app-test-02","app-prod-01"
+func getSheldonAutoSnowflakeWorkerId() (int64, error) {
+
+	workerId, err := getWorkerIdByHostName()
+	if err != nil {
+		workerId, err1 := getWorkerIdByPrivateIPLower16Bit()
+		if err1 != nil {
+			return -1, err1
+		}
+		return int64(workerId), nil
+	}
+	return workerId, nil
+}
+
+func getWorkerIdByHostName() (int64, error) {
+	//mHostName := "app-dev-01"
+	mHostName, err := os.Hostname()
+	if err != nil {
+		return -1, err
+	}
+
+	if strings.Contains(mHostName, "-") {
+		kov := strings.Split(mHostName, "-")
+		hostNameNum := kov[len(kov)-1]
+		return strconv.ParseInt(hostNameNum, 10, 64)
+	}
+	return -1, errors.New("invalid host name")
+}
+
+func privateIPv4() (net.IP, error) {
+	as, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, a := range as {
+		ipnet, ok := a.(*net.IPNet)
+		if !ok || ipnet.IP.IsLoopback() {
+			continue
+		}
+
+		ip := ipnet.IP.To4()
+		if isPrivateIPv4(ip) {
+			return ip, nil
+		}
+	}
+	return nil, errors.New("no private ip address")
+}
+
+func isPrivateIPv4(ip net.IP) bool {
+	return ip != nil &&
+		(ip[0] == 10 || ip[0] == 172 && (ip[1] >= 16 && ip[1] < 32) || ip[0] == 192 && ip[1] == 168)
+}
+
+func getWorkerIdByPrivateIPLower16Bit() (uint16, error) {
+	ip, err := privateIPv4()
+	if err != nil {
+		return 0, err
+	}
+	return uint16(ip[2])<<8 + uint16(ip[3]), nil
 }
