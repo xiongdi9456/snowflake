@@ -41,7 +41,7 @@ func TestGenerateDuplicateID(t *testing.T) {
 
 func TestSheldonSnowFlakeID(t *testing.T) {
 
-	node, err := NewSheldonAutoWorkerIdSnowflake()
+	node, err := NewSheldonSnowflakeAutoWorkerId()
 	if err != nil {
 
 		return

@@ -101,8 +101,8 @@ type Node struct {
 // attach methods onto the ID.
 type ID int64
 
-// NewSheldonSnowflake
-func NewSheldonAutoWorkerIdSnowflake() (*Node, error) {
+// NewSheldonSnowflake自动生成workerID
+func NewSheldonSnowflakeAutoWorkerId() (*Node, error) {
 
 	// re-calc in case custom NodeBits or StepBits were set
 	// DEPRECATED: the below block will be removed in a future release.
@@ -120,9 +120,48 @@ func NewSheldonAutoWorkerIdSnowflake() (*Node, error) {
 	// 2.如果解析不到再去解析服务器私有ip
 	myAutoWorkerId, err := getSheldonAutoSnowflakeWorkerId()
 	if err != nil {
-		return nil, errors.New("workerId auto generate failed")
+		return nil, errors.New("workerId auto generate failed, please use NewNode(node int64) to assign nodeId")
 	}
 	n.node = myAutoWorkerId
+
+	n.nodeMax = -1 ^ (-1 << NodeBits)
+	n.nodeMask = n.nodeMax << StepBits
+	n.stepMask = -1 ^ (-1 << StepBits)
+	n.timeShift = NodeBits + StepBits
+	n.nodeShift = StepBits
+
+	if n.node < 0 || n.node > n.nodeMax {
+		return nil, errors.New("Node number must be between 0 and " + strconv.FormatInt(n.nodeMax, 10))
+	}
+
+	var curTime = time.Now()
+	// add time.Duration to curTime to make sure we use the monotonic clock if available
+	n.epoch = curTime.Add(time.Unix(Epoch/1000, (Epoch%1000)*1000000).Sub(curTime))
+
+	return &n, nil
+}
+
+func NewSheldonSnowflakeWithPrivateIpToWorkerId() (*Node, error) {
+
+	// re-calc in case custom NodeBits or StepBits were set
+	// DEPRECATED: the below block will be removed in a future release.
+	mu.Lock()
+	nodeMax = -1 ^ (-1 << NodeBits)
+	nodeMask = nodeMax << StepBits
+	stepMask = -1 ^ (-1 << StepBits)
+	timeShift = NodeBits + StepBits
+	nodeShift = StepBits
+	mu.Unlock()
+
+	n := Node{}
+	//自动获取nodeID
+	//直接解析服务器私有ip
+	//部署的时候可以给容器指定私有IP保证不重复
+	myAutoWorkerId, err := getWorkerIdByPrivateIPLower16Bit()
+	if err != nil {
+		return nil, errors.New("workerId auto generate failed, please use NewNode(node int64) to assign nodeId")
+	}
+	n.node = int64(myAutoWorkerId)
 
 	n.nodeMax = -1 ^ (-1 << NodeBits)
 	n.nodeMask = n.nodeMax << StepBits
