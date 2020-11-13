@@ -245,6 +245,13 @@ func (n *Node) Generate() ID {
 	return r
 }
 
+func (n *Node) GetWorkerId() int64 {
+	n.mu.Lock()
+	mWorkerId := n.node
+	n.mu.Unlock()
+	return mWorkerId
+}
+
 // Int64 returns an int64 of the snowflake ID
 func (f ID) Int64() int64 {
 	return int64(f)
