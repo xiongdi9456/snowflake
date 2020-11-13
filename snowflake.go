@@ -161,8 +161,7 @@ func NewSheldonSnowflakeWithPrivateIpToWorkerId() (*Node, error) {
 	if err != nil {
 		return nil, errors.New("workerId auto generate failed, please use NewNode(node int64) to assign nodeId")
 	}
-	n.node = int64(myAutoWorkerId)
-
+	n.node = myAutoWorkerId
 	n.nodeMax = -1 ^ (-1 << NodeBits)
 	n.nodeMask = n.nodeMax << StepBits
 	n.stepMask = -1 ^ (-1 << StepBits)
@@ -461,7 +460,12 @@ func getSheldonAutoSnowflakeWorkerId() (int64, error) {
 		if err1 != nil {
 			return -1, err1
 		}
-		return int64(workerId), nil
+		return workerId, nil
+	}
+
+	//合法的workerID是[0,1023]
+	if workerId < 0 || workerId > 1023 {
+		return -1, errors.New("invalid workerId")
 	}
 	return workerId, nil
 }
@@ -483,12 +487,18 @@ func getWorkerIdByHostName() (int64, error) {
 }
 
 // 通过私有IP获取workerId
-func getWorkerIdByPrivateIPLower16Bit() (uint16, error) {
+func getWorkerIdByPrivateIPLower16Bit() (int64, error) {
 	ip, err := privateIPv4()
 	if err != nil {
-		return 0, err
+		return -1, err
 	}
-	return uint16(ip[2])<<8 + uint16(ip[3]), nil
+	workerId := int64(ip[2])<<2 + int64(ip[3])
+	//合法的workerID是0~1023
+	if workerId < 0 || workerId > 1023 {
+		return -1, errors.New("invalid workerId")
+	}
+
+	return workerId, nil
 }
 
 // 获取私有IP

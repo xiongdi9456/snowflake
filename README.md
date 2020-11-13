@@ -86,7 +86,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/bwmarrin/snowflake"
+	"github.com/xiongdi9456/snowflake"
 )
 
 func main() {
@@ -129,7 +129,7 @@ func main() {
 
 func TestSheldonSnowFlakeID(t *testing.T) {
 
-	node, err := NewSheldonAutoWorkerIdSnowflake()
+	node, err := snowflake.NewSheldonAutoWorkerIdSnowflake()
 	if err != nil {
 
 		return

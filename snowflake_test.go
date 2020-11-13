@@ -39,16 +39,37 @@ func TestGenerateDuplicateID(t *testing.T) {
 	}
 }
 
-func TestSheldonSnowFlakeID(t *testing.T) {
+func TestSheldonSnowFlakeAutoWorkerId(t *testing.T) {
 
 	node, err := NewSheldonSnowflakeAutoWorkerId()
 	if err != nil {
-
+		t.Logf("TestSheldonSnowFlakeAutoWorkerId err : %#v", err)
 		return
 	}
 
 	var x, y ID
 	for i := 0; i < 20; i++ {
+		y = node.Generate()
+		t.Logf("Int64    : %#v", y.Int64())
+		t.Logf("String   : %#v", y.String())
+		t.Logf("Base64   : %#v", y.Base64())
+		if x == y {
+			t.Errorf("x(%d) & y(%d) are the same", x, y)
+		}
+		x = y
+	}
+}
+
+func TestSheldonSnowFlakePrivateIpWorkerId(t *testing.T) {
+
+	node, err := NewSheldonSnowflakeWithPrivateIpToWorkerId()
+	if err != nil {
+		t.Logf("TestSheldonSnowFlakePrivateIpWorkerId err : %#v", err)
+		return
+	}
+
+	var x, y ID
+	for i := 0; i < 30; i++ {
 		y = node.Generate()
 		t.Logf("Int64    : %#v", y.Int64())
 		t.Logf("String   : %#v", y.String())
